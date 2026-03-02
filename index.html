@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de CEP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .card {
+            transition: all 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+        }
+        
+        .input-focus {
+            transition: all 0.2s ease;
+        }
+        
+        .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-lg w-full">
+        <!-- Cabeçalho -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center gap-3 bg-white rounded-2xl px-6 py-3 shadow-sm mb-4">
+                <i class="fa-solid fa-map-location-dot text-3xl text-blue-600"></i>
+                <h1 class="text-4xl font-bold text-gray-900 tracking-tight">Consulta de CEP</h1>
+            </div>
+            <p class="text-gray-600 text-lg">Digite o CEP e veja o endereço completo</p>
+        </div>
+
+        <!-- Card principal -->
+        <div class="card bg-white rounded-3xl shadow-xl overflow-hidden">
+            <!-- Área de busca -->
+            <div class="p-8">
+                <div class="flex gap-3">
+                    <div class="relative flex-1">
+                        <input 
+                            id="cep"
+                            type="text" 
+                            maxlength="9"
+                            placeholder="00000-000"
+                            class="input-focus w-full px-6 py-4 text-2xl font-medium border border-gray-200 rounded-2xl focus:outline-none text-gray-900 placeholder-gray-400"
+                        >
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </div>
+                    </div>
+                    
+                    <button 
+                        onclick="buscarCEP()"
+                        class="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 transition-all text-white px-8 py-4 rounded-2xl font-semibold flex items-center gap-2 text-lg shadow-md"
+                    >
+                        <i class="fa-solid fa-search"></i>
+                        Buscar
+                    </button>
+                </div>
+                
+                <p class="text-center text-xs text-gray-500 mt-3">Exemplo: 80010-000</p>
+            </div>
+
+            <!-- Resultado -->
+            <div id="resultado" class="min-h-[300px] bg-gray-50 px-8 py-6 border-t border-gray-100"></div>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="flex justify-between items-center mt-6 text-sm text-gray-500 px-2">
+            <div class="flex items-center gap-1">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Dados fornecidos por</span>
+                <a href="https://viacep.com.br" target="_blank" 
+                   class="text-blue-600 hover:text-blue-700 font-medium transition">ViaCEP</a>
+            </div>
+            <button onclick="limparTudo()" 
+                    class="flex items-center gap-1 hover:text-red-600 transition">
+                <i class="fa-solid fa-trash"></i>
+                <span>Limpar</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Formatação automática do CEP (00000-000)
+        const cepInput = document.getElementById('cep');
+        
+        cepInput.addEventListener('input', function (e) {
+            let valor = e.target.value.replace(/\D/g, ''); // remove tudo que não é número
+            
+            if (valor.length > 8) valor = valor.slice(0, 8);
+            
+            if (valor.length > 5) {
+                valor = valor.substring(0, 5) + '-' + valor.substring(5);
+            }
+            
+            e.target.value = valor;
+        });
+
+        // Buscar ao pressionar Enter
+        cepInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                buscarCEP();
+            }
+        });
+
+        async function buscarCEP() {
+            const resultadoDiv = document.getElementById('resultado');
+            let cep = cepInput.value.replace(/\D/g, ''); // remove o hífen
+
+            // Validação
+            if (cep.length !== 8) {
+                resultadoDiv.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+                        <i class="fa-solid fa-circle-exclamation text-4xl text-red-500 mb-3"></i>
+                        <p class="text-red-600 font-medium text-lg">CEP inválido</p>
+                        <p class="text-red-500 text-sm mt-1">Digite um CEP com 8 dígitos</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Loading
+            resultadoDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-64">
+                    <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+                    <p class="mt-4 text-gray-500 font-medium">Consultando o CEP...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+                
+                if (!response.ok) throw new Error('Erro na API');
+
+                const data = await response.json();
+
+                if (data.erro) {
+                    resultadoDiv.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-8 text-center">
+                            <i class="fa-solid fa-magnifying-glass text-5xl text-yellow-500 mb-4"></i>
+                            <p class="text-yellow-600 font-semibold text-2xl">CEP não encontrado</p>
+                            <p class="text-yellow-500 mt-2">Verifique se o CEP está correto.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Monta o resultado bonito
+                let html = `
+                    <div class="space-y-6">
+                        <div class="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm">
+                            <div class="w-12 h-12 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                <i class="fa-solid fa-map-pin text-3xl text-blue-600"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 font-medium">CEP ENCONTRADO</p>
+                                <p class="text-3xl font-bold text-gray-900 tracking-wider">${data.cep}</p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-4">
+                            <div class="bg-white rounded-2xl p-5 flex gap-4 items-start">
+                                <i class="fa-solid fa-road text-2xl text-amber-500 mt-1"></i>
+                                <div class="flex-1">
+                                    <p class="text-xs uppercase tracking-widest text-gray-400">Logradouro</p>
+                                    <p class="text-xl font-semibold text-gray-800">${data.logradouro || 'Não informado'}</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl p-5 flex gap-4 items-start">
+                                <i class="fa-solid fa-house text-2xl text-emerald-500 mt-1"></i>
+                                <div class="flex-1">
+                                    <p class="text-xs uppercase tracking-widest text-gray-400">Bairro</p>
+                                    <p class="text-xl font-semibold text-gray-800">${data.bairro || 'Não informado'}</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                <div class="bg-white rounded-2xl p-5 flex gap-4 items-start">
+                                    <i class="fa-solid fa-city text-2xl text-purple-500 mt-1"></i>
+                                    <div class="flex-1">
+                                        <p class="text-xs uppercase tracking-widest text-gray-400">Cidade</p>
+                                        <p class="text-xl font-semibold text-gray-800">${data.localidade}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="bg-white rounded-2xl p-5 flex gap-4 items-start">
+                                    <i class="fa-solid fa-flag text-2xl text-rose-500 mt-1"></i>
+                                    <div class="flex-1">
+                                        <p class="text-xs uppercase tracking-widest text-gray-400">Estado</p>
+                                        <p class="text-3xl font-bold text-gray-800">${data.uf}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${data.complemento ? `
+                        <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5 text-amber-700">
+                            <p class="text-xs uppercase font-medium">Complemento</p>
+                            <p class="text-lg">${data.complemento}</p>
+                        </div>` : ''}
+                    </div>
+                `;
+
+                resultadoDiv.innerHTML = html;
+
+            } catch (err) {
+                resultadoDiv.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+                        <i class="fa-solid fa-wifi text-5xl text-red-400 mb-4"></i>
+                        <p class="font-semibold text-red-700">Falha na conexão</p>
+                        <p class="text-red-600 text-sm mt-1">Verifique sua internet e tente novamente.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function limparTudo() {
+            cepInput.value = '';
+            document.getElementById('resultado').innerHTML = '';
+            cepInput.focus();
+        }
+
+        // Foco automático no input ao carregar
+        window.onload = () => {
+            cepInput.focus();
+        };
+    </script>
+</body>
+</html>
